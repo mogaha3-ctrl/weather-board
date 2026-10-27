@@ -59,6 +59,27 @@ function addTask(e) {
   renderTasks();
 }
 
+// 지역별 날씨를 받아 목록을 다시 그림 (실패해도 목록은 그대로 보임)
+async function loadWeather() {
+  const box = document.getElementById('weatherBox');
+  try {
+    const res = await fetch(buildWeatherUrl());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    weatherByRegion = parseWeather(await res.json());
+    // 시험용 : 주소 끝에 ?test=wind 를 붙이면 풍속을 12로 바꿈
+    if (new URLSearchParams(location.search).get('test') === 'wind') {
+      for (const name in weatherByRegion) weatherByRegion[name].windMax = 12;
+    }
+    box.textContent = Object.keys(weatherByRegion).length
+      ? '오늘 날씨 (최고 기온 · 최대 풍속 · 강수확률)' : '날씨 정보를 해석하지 못했습니다';
+  } catch (err) {
+    weatherByRegion = {};
+    box.textContent = '날씨를 불러오지 못했습니다 (' + err.message + ')';
+  }
+  renderTasks();
+}
+
 document.getElementById('taskForm').addEventListener('submit', addTask);
 loadTasks();
 renderTasks();
+loadWeather();
