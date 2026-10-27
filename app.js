@@ -1,21 +1,21 @@
 // app.js – 화면 동작 (목록 그리기, 일정 추가)
 
-// 01 단원 : 일정 목록을 코드 안에 둠 (가상 데이터) → 04 단원에서 data/tasks.json 으로 분리
-const SAMPLE_TASKS = [
-  { title: '다중이용시설 안전점검', region: '세종', kind: '야외', owner: '김안전' },
-  { title: '시민 안전체험 행사 운영', region: '보령', kind: '야외', owner: '이행사' },
-  { title: '옥상 태양광 설비 점검', region: '태안', kind: '고소', owner: '박설비' },
-  { title: '하천 수위계 확인', region: '대전', kind: '야외', owner: '최현장' },
-  { title: '청사 외벽 간판 보수', region: '세종', kind: '고소', owner: '정시설' },
-  { title: '비상연락 훈련', region: '대전', kind: '실내', owner: '한상황' },
-];
+// 일정은 Supabase 표 wx_tasks 에 저장 (연결 정보는 config.js, 표 만들기는 setup.sql)
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let tasks = [];
 let weatherByRegion = {};   // 03 단원에서 지역별 날씨를 넣음
 
-function loadTasks() {
-  const saved = JSON.parse(localStorage.getItem('wx_added') || '[]');
-  tasks = SAMPLE_TASKS.concat(saved);
+// 표에서 일정을 읽음 (실패하면 안내 문구를 보이고 빈 목록)
+async function loadTasks() {
+  const { data, error } = await db.from('wx_tasks')
+    .select('title, region, kind, owner').order('id');
+  if (error) {
+    tasks = [];
+    document.getElementById('msgBox').textContent = '일정을 불러오지 못했습니다 (' + error.message + ')';
+    return;
+  }
+  tasks = data;
 }
 
 function weatherText(w) {
@@ -42,8 +42,9 @@ function renderTasks() {
   }
 }
 
-function addTask(e) {
+async function addTask(e) {
   e.preventDefault();
+  const form = e.target;
   const t = {
     title: document.getElementById('titleInput').value.trim(),
     region: document.getElementById('regionInput').value,
@@ -51,11 +52,15 @@ function addTask(e) {
     owner: document.getElementById('ownerInput').value.trim(),
   };
   if (!t.title || !t.owner) return;
-  const saved = JSON.parse(localStorage.getItem('wx_added') || '[]');
-  saved.push(t);
-  localStorage.setItem('wx_added', JSON.stringify(saved));
-  e.target.reset();
-  loadTasks();
+  const msg = document.getElementById('msgBox');
+  const { error } = await db.from('wx_tasks').insert(t);
+  if (error) {
+    msg.textContent = '일정을 저장하지 못했습니다 (' + error.message + ')';
+    return;
+  }
+  msg.textContent = '';
+  form.reset();
+  await loadTasks();
   renderTasks();
 }
 
@@ -80,6 +85,5 @@ async function loadWeather() {
 }
 
 document.getElementById('taskForm').addEventListener('submit', addTask);
-loadTasks();
-renderTasks();
+loadTasks().then(renderTasks);
 loadWeather();
