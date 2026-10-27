@@ -42,6 +42,23 @@ function renderTasks() {
   }
 }
 
+// 오늘 판단을 현장일정_판단_YYYY-MM-DD.md 로 내려받음 (날짜는 화면 제목 아래와 같이 고정)
+const TODAY = '2026-10-27';
+
+function saveJudgeMd() {
+  const rows = tasks.map(t => {
+    const w = weatherByRegion[t.region];
+    return { title: t.title, region: t.region, kind: t.kind, owner: t.owner,
+      weather: weatherText(w), judge: judge(t.kind, w).text };
+  });
+  const blob = new Blob([buildJudgeMd(rows, TODAY)], { type: 'text/markdown;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '현장일정_판단_' + TODAY + '.md';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 async function addTask(e) {
   e.preventDefault();
   const form = e.target;
@@ -85,5 +102,6 @@ async function loadWeather() {
 }
 
 document.getElementById('taskForm').addEventListener('submit', addTask);
+document.getElementById('saveMdBtn').addEventListener('click', saveJudgeMd);
 loadTasks().then(renderTasks);
 loadWeather();
